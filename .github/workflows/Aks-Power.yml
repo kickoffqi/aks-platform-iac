@@ -1,0 +1,59 @@
+name: AKS Power Control
+
+on:
+    workflow_dispatch:
+        inputs:
+            action:
+                description: "Start or Stop AKS cluster"
+                required: true
+                default: "start"
+                type: choice
+                options:
+                    - start
+                    - stop
+
+permissions:
+    id-token: write
+    contents: read
+
+jobs:
+    aks-power:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Azure Login (OIDC)
+              uses: azure/login@v2
+              with:
+                  client-id: ${{ vars.AZURE_CLIENT_ID }}
+                  tenant-id: ${{ vars.AZURE_TENANT_ID }}
+                  subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+            - name: Show AKS current power state
+              run: |
+                  az aks show \
+                    -g ${{ vars.AKS_RG }} \
+                    -n ${{ vars.AKS_NAME }} \
+                    --query "powerState.code" -o tsv
+
+            - name: Start AKS
+              if: ${{ github.event.inputs.action == 'start' }}
+              run: |
+                  echo "Starting AKS..."
+                  az aks start \
+                    -g ${{ vars.AKS_RG }} \
+                    -n ${{ vars.AKS_NAME }}
+
+            - name: Stop AKS
+              if: ${{ github.event.inputs.action == 'stop' }}
+              run: |
+                  echo "Stopping AKS..."
+                  az aks stop \
+                    -g ${{ vars.AKS_RG }} \
+                    -n ${{ vars.AKS_NAME }}
+
+            - name: Show AKS final power state
+              run: |
+                  az aks show \
+                    -g ${{ vars.AKS_RG }} \
+                    -n ${{ vars.AKS_NAME }} \
+                    --query "powerState.code" -o tsv
