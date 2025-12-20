@@ -1,59 +1,101 @@
 name: AKS Power Control
 
 on:
-    workflow_dispatch:
-        inputs:
-            action:
-                description: "Start or Stop AKS cluster"
-                required: true
-                default: "start"
-                type: choice
-                options:
-                    - start
-                    - stop
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Start or Stop AKS cluster"
+        required: true
+        default: "start"
+        type: choice
+        options:
+          - start
+          - stop
+
+  schedule:
+    # 每天墨尔本 23:00 自动 stop
+    # AEDT (UTC+11) => 12:00 UTC
+    - cron: "0 1 * * *"
 
 permissions:
-    id-token: write
-    contents: read
+  id-token: write
+  contents: read
 
 jobs:
-    aks-power:
-        runs-on: ubuntu-latest
+  aks-power:
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Azure Login (OIDC)
-              uses: azure/login@v2
-              with:
-                  client-id: ${{ vars.AZURE_CLIENT_ID }}
-                  tenant-id: ${{ vars.AZURE_TENANT_ID }}
-                  subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      # 1️⃣ 决定目标动作
+      - name: Decide desired action
+        id: decide
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "desired=stop" >> $GITHUB_OUTPUT
+          else
+            echo "desired=${{ github.event.inputs.action }}" >> $GITHUB_OUTPUT
+          fi
+          echo "Desired action: ${{ github.event_name }} -> $(cat $GITHUB_OUTPUT | grep desired)"
 
-            - name: Show AKS current power state
-              run: |
-                  az aks show \
-                    -g ${{ vars.AKS_RG }} \
-                    -n ${{ vars.AKS_NAME }} \
-                    --query "powerState.code" -o tsv
+      # 2️⃣ Azure Login
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-            - name: Start AKS
-              if: ${{ github.event.inputs.action == 'start' }}
-              run: |
-                  echo "Starting AKS..."
-                  az aks start \
-                    -g ${{ vars.AKS_RG }} \
-                    -n ${{ vars.AKS_NAME }}
+      # 3️⃣ 读取当前 AKS 状态
+      - name: Get current AKS power state
+        id: state
+        shell: bash
+        run: |
+          STATE="$(az aks show \
+            -g ${{ vars.AKS_RG }} \
+            -n ${{ vars.AKS_NAME }} \
+            --query powerState.code -o tsv)"
 
-            - name: Stop AKS
-              if: ${{ github.event.inputs.action == 'stop' }}
-              run: |
-                  echo "Stopping AKS..."
-                  az aks stop \
-                    -g ${{ vars.AKS_RG }} \
-                    -n ${{ vars.AKS_NAME }}
+          echo "current=$STATE" >> $GITHUB_OUTPUT
+          echo "Current AKS state: $STATE"
 
-            - name: Show AKS final power state
-              run: |
-                  az aks show \
-                    -g ${{ vars.AKS_RG }} \
-                    -n ${{ vars.AKS_NAME }} \
-                    --query "powerState.code" -o tsv
+      # 4️⃣ 判断是否需要执行
+      - name: Decide whether to execute
+        id: exec
+        shell: bash
+        run: |
+          DESIRED="${{ steps.decide.outputs.desired }}"
+          CURRENT="${{ steps.state.outputs.current }}"
+
+          if [ "$DESIRED" = "stop" ] && [ "$CURRENT" = "Stopped" ]; then
+            echo "execute=false" >> $GITHUB_OUTPUT
+            echo "AKS already stopped. Skip."
+          elif [ "$DESIRED" = "start" ] && [ "$CURRENT" = "Running" ]; then
+            echo "execute=false" >> $GITHUB_OUTPUT
+            echo "AKS already running. Skip."
+          else
+            echo "execute=true" >> $GITHUB_OUTPUT
+            echo "Action required."
+          fi
+
+      # 5️⃣ Start AKS（仅在需要时）
+      - name: Start AKS
+        if: steps.exec.outputs.execute == 'true' && steps.decide.outputs.desired == 'start'
+        run: |
+          echo "Starting AKS..."
+          az aks start -g ${{ vars.AKS_RG }} -n ${{ vars.AKS_NAME }}
+
+      # 6️⃣ Stop AKS（仅在需要时）
+      - name: Stop AKS
+        if: steps.exec.outputs.execute == 'true' && steps.decide.outputs.desired == 'stop'
+        run: |
+          echo "Stopping AKS..."
+          az aks stop -g ${{ vars.AKS_RG }} -n ${{ vars.AKS_NAME }}
+
+      # 7️⃣ 最终状态
+      - name: Show final AKS power state
+        run: |
+          az aks show \
+            -g ${{ vars.AKS_RG }} \
+            -n ${{ vars.AKS_NAME }} \
+            --query powerState.code -o tsv
