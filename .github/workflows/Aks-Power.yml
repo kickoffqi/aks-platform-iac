@@ -99,3 +99,22 @@ jobs:
             -g ${{ vars.AKS_RG }} \
             -n ${{ vars.AKS_NAME }} \
             --query powerState.code -o tsv
+
+      - name: Slack notify (success)
+        if: steps.exec.outputs.execute == 'true' && success()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          MSG: |
+            ✅ AKS Power: ${{ steps.decide.outputs.desired }} succeeded. (was: ${{ steps.state.outputs.current }})
+            Repo: ${{ github.repository }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+          url=os.environ["SLACK_WEBHOOK_URL"]
+          msg=os.environ["MSG"]
+          data=json.dumps({"text": msg}).encode("utf-8")
+          req=urllib.request.Request(url, data=data, headers={"Content-Type":"application/json"})
+          urllib.request.urlopen(req).read()
+          print("Slack notified.")
+          PY
