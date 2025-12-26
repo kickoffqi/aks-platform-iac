@@ -27,8 +27,14 @@ resource "azurerm_kubernetes_cluster" "aks" {
     vnet_subnet_id              = var.subnet_id
   }
 
+  # ✅ 关键：启用可执行的 NetworkPolicy（Calico）
   network_profile {
     network_plugin = "azure"
+    network_policy = "calico"
+
+    # （推荐）显式写出来，避免不同默认值导致行为差异
+    load_balancer_sku = "standard"
+    outbound_type     = "loadBalancer"
   }
 
   tags = var.tags
