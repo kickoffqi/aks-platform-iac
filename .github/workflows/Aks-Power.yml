@@ -15,7 +15,7 @@ on:
   schedule:
     # 每天墨尔本 23:00 自动 stop
     # AEDT (UTC+11) => 12:00 UTC
-    - cron: "0 1 * * *"
+    - cron: "0 13 * * *"
 
 permissions:
   id-token: write
