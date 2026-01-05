@@ -22,7 +22,17 @@ variable "tags" {
 variable "system_vm_size" { type = string }
 variable "system_count" { type = number }
 
-variable "user1_vm_size" { type = string }
+variable "user_pools" {
+  type = map(object({
+    vm_size            = string
+    node_count         = number
+    enable_autoscaling = bool
+    min_count          = number
+    max_count          = number
+  }))
+}
+
+/* variable "user1_vm_size" { type = string }
 variable "user1_count" { type = number }
 
 variable "user2_vm_size" { type = string }
@@ -53,4 +63,4 @@ variable "user2_min_count" {
 variable "user2_max_count" {
   type    = number
   default = 3
-}
+} */

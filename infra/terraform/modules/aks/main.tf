@@ -39,8 +39,32 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   tags = var.tags
 }
+#user node pools variables to config 1 or 2 user pools
+resource "azurerm_kubernetes_cluster_node_pool" "user" {
+  for_each              = var.user_pools
+  name                  = each.key
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
+  mode                  = "User"
+  vm_size               = each.value.vm_size
+  node_count            = each.value.node_count
+  vnet_subnet_id        = var.subnet_id
+  tags                  = var.tags
 
-# user pool 1
+  auto_scaling_enabled = each.value.enable_autoscaling
+  min_count            = each.value.enable_autoscaling ? each.value.min_count : null
+  max_count            = each.value.enable_autoscaling ? each.value.max_count : null
+}
+
+moved {
+  from = azurerm_kubernetes_cluster_node_pool.user1
+  to   = azurerm_kubernetes_cluster_node_pool.user["user1"]
+}
+moved {
+  from = azurerm_kubernetes_cluster_node_pool.user2
+  to   = azurerm_kubernetes_cluster_node_pool.user["user2"]
+}
+
+/* # user pool 1
 resource "azurerm_kubernetes_cluster_node_pool" "user1" {
   name                  = "user1"
   kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
@@ -68,4 +92,4 @@ resource "azurerm_kubernetes_cluster_node_pool" "user2" {
   auto_scaling_enabled = var.enable_autoscaler_user2
   min_count            = var.enable_autoscaler_user2 ? var.user2_min_count : null
   max_count            = var.enable_autoscaler_user2 ? var.user2_max_count : null
-}
+} */

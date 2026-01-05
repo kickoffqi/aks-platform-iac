@@ -27,20 +27,8 @@ module "aks" {
   system_vm_size = var.system_vm_size
   system_count   = var.system_count
 
-  user1_vm_size = var.user1_vm_size
-  user1_count   = var.user1_count
-  user2_vm_size = var.user2_vm_size
-  user2_count   = var.user2_count
-
-  enable_autoscaler_user1 = var.enable_autoscaler_user1
-  user1_min_count         = var.user1_min_count
-  user1_max_count         = var.user1_max_count
-
-  enable_autoscaler_user2 = var.enable_autoscaler_user2
-  user2_min_count         = var.user2_min_count
-  user2_max_count         = var.user2_max_count
-
-  tags = var.tags
+  user_pools = var.user_pools
+  tags       = var.tags
 
   depends_on = [module.network]
 }

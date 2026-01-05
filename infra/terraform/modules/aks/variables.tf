@@ -7,23 +7,16 @@ variable "tags" { type = map(string) }
 variable "system_vm_size" { type = string }
 variable "system_count" { type = number }
 
-variable "user1_vm_size" { type = string }
-variable "user1_count" { type = number }
-variable "user2_vm_size" { type = string }
-variable "user2_count" { type = number }
-
-variable "enable_autoscaler_user1" { 
-  type    = bool
-  default = true
+variable "user_pools" {
+  type = map(object({
+    vm_size            = string
+    node_count         = number
+    enable_autoscaling = bool
+    min_count          = number
+    max_count          = number
+  }))
+  validation {
+    condition     = length(var.user_pools) >= 1 && length(var.user_pools) <= 2
+    error_message = "user_pools must contain 1 or 2 pools."
+  }
 }
-
-variable "user1_min_count" { type = number }
-variable "user1_max_count" { type = number }
-
-variable "enable_autoscaler_user2" { 
-  type    = bool
-  default = true
-}
-
-variable "user2_min_count" { type = number }
-variable "user2_max_count" { type = number }

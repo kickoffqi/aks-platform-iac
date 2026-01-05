@@ -5,5 +5,9 @@ output "kubelet_object_id" {
 }
 
 output "system_pool_name" { value = "system" }
-output "user1_pool_name" { value = azurerm_kubernetes_cluster_node_pool.user1.name }
-output "user2_pool_name" { value = azurerm_kubernetes_cluster_node_pool.user2.name }
+
+output "user_pool_names" { value = { for k, p in azurerm_kubernetes_cluster_node_pool.user : k => p.name } }
+
+
+//output "user1_pool_name" { value = azurerm_kubernetes_cluster_node_pool.user1.name }
+//output "user2_pool_name" { value = azurerm_kubernetes_cluster_node_pool.user2.name }
